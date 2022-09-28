@@ -1,0 +1,48 @@
+Notes on slack message behavior
+
+all scripts in moss
+
+
+/autocal/autocal.py
+    All commands send through utility function send_to_slack with parameters msg_color, msg_text, hostname, msg_people and msg_osa
+
+    It appears that identify_target actually runs the core functionality of autocal per tid found in moss/modules/function.py
+
+    auiocal iterates the new tids checks if these are targets the imaging end (i assume that means the last target in  an obs) or fialure using identify_target
+    It changes the atdb status if all tids from the week have been processed
+    -send slack message turned OFF successfully
+
+    if it is imaging_end it send a slakc message with turned OFF succesfully for <TID>:imaging_end
+    If the tid is of type target it gets the calibrators from alta 
+        - If these arent present quits silently after moving the logs to /logs
+        
+    Downloads OSA Signup 2020 as csv and iterates over all present to get slack id of person and osa which i assume is a person
+
+    And now it checks failure_msg as returned by identify_target, if it failes here the message is ABORTED and it exits withoutr moving log files
+    - Here it is important to note that the autocal script doesnt seem to write log files its some underlying script that is being run (no idea which)
+
+    Now apercal is triggered with message apercal trigered after lots of dict formating
+
+    after execution if no error is returned it sends the messafe pipeline finished succesfully
+    - if qa is requested runs it in try clause, if it works sned QA pipeline finished succesfully else returns FAILED   
+    - if args.ingest it send the message apergest finished succesfully this is in a try clause so only results in failure if raises exception
+    If it faield it send apercal failed
+
+    There is also the args.one class which returns Apercal pipeline has gracefully exiited this should only be send on failure as all failure end the script beforehand
+
+/apergest/apergest.py
+    This is run in a try clause without checking return 
+    If it is already ingested it return nothing but doesnt raise an exception, inserts into log: TID <tid> already ingested on <hostname>... continuing!
+    TODO: Suggest a return item to send slack message that it was already ingested
+    If the construction of a list named done_taskid_beam_list fails it return nothing inserting into the log file: No taskid and beam combination found for deletion
+
+    Can fail on custom exceptions:
+        in make_json: RuntimeError - creating json of taskid <tid> failed
+        in prepare_ingest: RuntimeError - Preparing ingest of taskid <tid> failed
+        in trigger_ingest: RuntimeError - INgest of taskid <tid> failed
+        in do_delete_data: RuntimeError - Ingest of task <tid> failed
+            - NOTE Above that its the same message for ingest and delete!
+
+        Corresponding logfile: apergest_<host>_<YYmmdd_HHMMSS>.log
+        After run palced in moss/happily-0x/logs
+
